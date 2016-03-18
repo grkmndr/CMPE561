@@ -1,0 +1,316 @@
+import re
+import numpy as np
+import os
+import codecs
+import sys
+
+rootDir = '.'
+TOTAL_TRAINING_DOCUMENT_COUNT = 0
+DOCUMENT_COUNT_PER_AUTHOR = {}
+VOCABULARY = set() #Set of all the unique words in the training set.
+authorBags = {} #A dictionary for storing the bag of words for each author.
+authorFeatures = {} #A dictionary for storing the features (word count, sentence count etc.) of each author
+authorPRF = {} #A dictionary for evaluating the precision, recall and f-score values for each author
+TRAINING_SET_DIRECTORY_PATH = sys.argv[1]
+TEST_SET_DIRECTORY_PATH = sys.argv[2]
+
+def tokenize(text, choice): #if choice is 1 return the bag of words, else return the unique words with their counts
+    bag = re.split('\W+', text)
+    counts = {}
+    for x in set(bag):
+        counts.update({x:bag.count(x)})
+    if choice:
+        return bag
+    else:
+        return counts
+
+    
+def mean_var(counts): #gets a list of feature counts(comma count, word count etc.) of multiple files of one author and returns the mean and the variance of that sample.
+    mean = sum(counts)/len(counts)
+    var = 0 #variance
+    for i in range(0, len(counts)):
+        var += (counts[i]-mean)**2
+    var /= len(counts)
+    return mean,var
+
+def gaussian_pdf_value(mean,var,value): #returns the gaussian pdf value of a variable (value)
+    if var==0:
+        return 1e-40
+    pdf = (1/np.sqrt(2*np.pi*var)) * np.exp(-1*(((value-mean)**2)/(2*var)))
+    
+    if pdf == 0:
+        return 1e-40
+    
+    return pdf 
+
+def z_score(mean, var, value): #returns the z-score of a variable (value)
+    if var==0:
+        return np.log(1e-40)
+    return abs(value-mean)/np.sqrt(var)
+
+#The following for loop iterates over the files in the training set and fills the bag of words (authorBags) for each author.
+#The feature set dictionary (authorFeatures) is also filled in this for loop.
+for dirName, subdirList, fileList in os.walk(rootDir +'/'+ str(TRAINING_SET_DIRECTORY_PATH)):
+    if(dirName != './trainingSet'):
+        currDir = dirName[14:]
+        print(currDir)
+        authorBags.update({currDir:{}})
+        authorFeatures.update({currDir:{'wordCount':[], #wordCount: total word count for the author.
+                                        'sentenceCount':[], #sentenceCount: sentence count per document for the author.
+                                        'wordLength':[], #wordLength: average word length for the author.
+                                        'commaCount':[], #commaCount: average number of commas per sentence for the author.
+                                        'exclamationCount':[], #exclamationCount: average number of exclamation marks per sentence for the author.
+                                        'questionCount':[] #questionCount: average number of question marks per sentence for the author.
+                                       }}) 
+
+        #Stores the information needed for calculating the micro and macro averaged precision, recall and f-score values.
+        authorPRF.update({currDir:{'TP':0, #true positive
+                                   'TN':0, #true negative
+                                   'FP':0, #false positive
+                                   'FN':0, #false negative
+                                   'Precision':0,
+                                   'Recall':0,
+                                   'Fscore':0
+                                  }})
+
+        fileCount = len(fileList)
+        DOCUMENT_COUNT_PER_AUTHOR.update({currDir:0})
+        
+        #Iterates over each file for the current author (currDir)
+        for fname in fileList:
+            TOTAL_TRAINING_DOCUMENT_COUNT += 1
+            DOCUMENT_COUNT_PER_AUTHOR[currDir] += 1
+            text = ''
+            with codecs.open(dirName+'/'+fname, 'r', 'ISO-8859-9') as myfile:
+                text = myfile.read().lower()
+
+                bagCounts = tokenize(text,0)
+                wordCount = 0
+                wordLength = 0
+                
+                for word in bagCounts:
+                    wordCount += bagCounts[word]
+                    wordLength += bagCounts[word]*len(word)                    
+                    
+                    newWord = ''
+                    if word.isdigit(): newWord = 'NUMBER'
+                    else: newWord = word
+                    
+                    if newWord in authorBags[currDir]:
+                        authorBags[currDir][newWord] += bagCounts[word]
+                    else:
+                        authorBags[currDir].update({newWord:bagCounts[word]})
+                
+                sentcount = text.count('.') #sentence count
+                authorFeatures[currDir]['wordCount'].append(wordCount) #word count of the current file
+                authorFeatures[currDir]['wordLength'].append(wordLength/wordCount) #average word length for the current file
+                authorFeatures[currDir]['sentenceCount'].append(sentcount) #sentence count of the current file
+                authorFeatures[currDir]['commaCount'].append(text.count(',')/sentcount) #comma count per sentence of the current file
+                authorFeatures[currDir]['exclamationCount'].append(text.count('!')/sentcount) #exclamation mark per sentence of the current file
+                authorFeatures[currDir]['questionCount'].append(text.count('?')/sentcount) #question mark per sentence of the current file
+                
+        if '' in authorBags[currDir]: del authorBags[currDir]['']
+            
+        VOCABULARY.update(authorBags[currDir].keys())
+        
+        #authorFeature currently stores the features of each individual document from an author, 
+        #so in this for loop we take the average of those documents and set a single value for each feature an author has.
+        for key in authorFeatures[currDir].keys():
+            authorFeatures[currDir][key] = mean_var(authorFeatures[currDir][key])
+
+
+
+#Takes a text as an input and returns the predicted class (maxAuth) for that text.
+#true_class: the actual author of the text
+def text_class(text, true_class): 
+    maxProb = -float('Inf')
+    maxAuth = ''
+    vocabSize = len(VOCABULARY)
+
+    sentenceCount = text.count('.')
+    commaCount = text.count(',')
+    exclamationCount = text.count('!')
+    questionCount = text.count('?')
+    
+    tokens = tokenize(text,1)
+    prob = 0
+    for authName in authorBags:
+        n = sum(authorBags[authName].values())
+        prob = 0
+        wordLength = 0
+        
+        #Naive bayes method is used in this for loop as well as the Laplace smoothing.
+        for token in tokens:
+            wordLength += len(token)
+            smoother = 0.001
+            if token in authorBags[authName]:
+                tokenProb = (authorBags[authName][token]+smoother)/(n+smoother*vocabSize) 
+            else:
+                tokenProb = smoother/(n+smoother*vocabSize)
+            prob = prob + np.log(tokenProb)
+        
+        wordLength /= len(tokens)
+        
+        authorProb = DOCUMENT_COUNT_PER_AUTHOR[authName] / TOTAL_TRAINING_DOCUMENT_COUNT # P(c), in other words the class probability.
+        prob += np.log(authorProb)
+        
+        #I tried using the z_scores of the given text in the feature distributions of each author but it didn't perform well. So this part is commented.
+        """ prob -= 0.01*z_score(authorFeatures[authName]['wordCount'][0], 
+                          authorFeatures[authName]['wordCount'][1], 
+                          len(tokens))
+        
+        prob -= 0.01*z_score(authorFeatures[authName]['sentenceCount'][0], 
+                           authorFeatures[authName]['sentenceCount'][1], 
+                           sentenceCount)
+        
+        prob -= 0.01*z_score(authorFeatures[authName]['wordLength'][0], 
+                           authorFeatures[authName]['wordLength'][1], 
+                           wordLength)
+        
+        prob -= 0.01*z_score(authorFeatures[authName]['commaCount'][0], 
+                           authorFeatures[authName]['commaCount'][1], 
+                           commaCount/sentenceCount)
+        
+        prob -= 0.01*z_score(authorFeatures[authName]['exclamationCount'][0], 
+                           authorFeatures[authName]['exclamationCount'][1], 
+                           exclamationCount/sentenceCount)
+        
+        prob -= 0.01*z_score(authorFeatures[authName]['questionCount'][0], 
+                           authorFeatures[authName]['questionCount'][1], 
+                           questionCount/sentenceCount)"""
+        
+        #Then I tried using the gaussian pdf values of the given text in the feature distributions of each author but it also didn't provide much. So this part is also commented.
+        """prob += np.log(gaussian_pdf_value(authorFeatures[authName]['wordCount'][0], 
+                          authorFeatures[authName]['wordCount'][1], 
+                          len(tokens)))
+        
+        prob += np.log(gaussian_pdf_value(authorFeatures[authName]['sentenceCount'][0], 
+                           authorFeatures[authName]['sentenceCount'][1], 
+                           sentenceCount))
+        
+        prob += np.log(gaussian_pdf_value(authorFeatures[authName]['wordLength'][0], 
+                           authorFeatures[authName]['wordLength'][1], 
+                           wordLength))
+        
+        prob += np.log(gaussian_pdf_value(authorFeatures[authName]['commaCount'][0], 
+                           authorFeatures[authName]['commaCount'][1], 
+                           commaCount/sentenceCount))
+
+        
+        prob += np.log(gaussian_pdf_value(authorFeatures[authName]['exclamationCount'][0], 
+                           authorFeatures[authName]['exclamationCount'][1], 
+                           exclamationCount/sentenceCount))
+        
+        prob += np.log(gaussian_pdf_value(authorFeatures[authName]['questionCount'][0], 
+                           authorFeatures[authName]['questionCount'][1], 
+                           questionCount/sentenceCount))"""
+        
+        
+        #Then I tried a much simpler method which takes the difference of the feature values of the given text and the actual averages of those features.
+        #I played around with the coefficients for a while and this method turned out to be pretty successful.
+        prob -= abs(authorFeatures[authName]['wordCount'][0] - len(tokens))
+        prob -= abs(authorFeatures[authName]['sentenceCount'][0] - sentenceCount)
+        prob -= 10*abs(authorFeatures[authName]['wordLength'][0] - wordLength)
+        prob -= 100*abs(authorFeatures[authName]['commaCount'][0] - commaCount/sentenceCount)
+        prob -= 1000*abs(authorFeatures[authName]['exclamationCount'][0] - exclamationCount/sentenceCount)
+        prob -= 100*abs(authorFeatures[authName]['questionCount'][0] - questionCount/sentenceCount)
+
+        #If the probability of this text to be written by the current author is greater than the max 
+        #probability we have seen so far, then we set the current author to be the author of the given text for now.
+        if prob > maxProb:
+            if maxAuth != '':
+                if maxAuth != true_class:
+                    authorPRF[maxAuth]['TN'] +=1 #If the old max was not the actual author of the given text, then we increment its true negative value by 1
+                else:
+                    authorPRF[maxAuth]['FN'] +=1 #If the old max was the actual author of the given text, then we increment its false negative value by 1
+                
+            maxProb = prob
+            maxAuth = authName
+        else:
+            if authName != true_class:
+                authorPRF[authName]['TN'] += 1 #If the current author is not the actual author of the given text, then we increment its true negative value by 1
+            else:
+                authorPRF[authName]['FN'] += 1 #If the current author is the actual author of the given text, then we increment its false negative value by 1
+        
+    return maxAuth
+
+
+#The following for loop calculates the success rate of the classifier.
+success = 0 #total number of successful author predictions
+totalTrial = 0 #total number of predictions (which actually is equal to the number of files in the test set).
+
+for dirName, subdirList, fileList in os.walk(rootDir+'/'+str(TEST_SET_DIRECTORY_PATH)):
+    if(dirName != './testSet'):
+        currDir = dirName[10:]
+        for fname in fileList:
+            text = ''
+            with codecs.open(dirName+'/'+fname, 'r', 'ISO-8859-9') as myfile:
+                text = myfile.read().lower()
+                auth = text_class(text, dirName[10:]) #predict the author of the current file(fname) .
+                totalTrial += 1
+                if (auth == dirName[10:]): #the prediction is correct (true positive)
+                    authorPRF[auth]['TP'] += 1
+                    success += 1
+                else: #the prediction is incorrect (false positive)
+                    authorPRF[auth]['FP'] += 1
+
+
+                    
+#The rest of the code is for calculating the micro-macro averages.
+                    
+tot_tp = 0
+tot_fp = 0
+tot_tn = 0
+tot_fn = 0
+precision = 0
+recall = 0
+fscore = 0
+
+for author in authorBags:
+    tp = authorPRF[author]['TP']
+    fp = authorPRF[author]['FP']
+    tn = authorPRF[author]['TN']
+    fn = authorPRF[author]['FN']
+    
+    #print(author, tp, fp, tn, fn)
+    
+    if(tp+fp != 0):
+        authorPRF[author]['Precision'] = tp/(tp+fp)
+    else:
+        authorPRF[author]['Precision'] = 0
+    
+    if(tp+fn != 0):
+        authorPRF[author]['Recall'] = tp/(tp+fn)
+    else:
+        authorPRF[author]['Recall'] = 0
+        
+    if(tp+fp+fn != 0):
+        authorPRF[author]['Fscore'] = 2*tp/(2*tp+fp+fn)
+    else:
+        authorPRF[author]['Fscore'] = 0
+        
+    precision += authorPRF[author]['Precision']
+    recall += authorPRF[author]['Recall']
+    fscore += authorPRF[author]['Fscore']
+    
+    tot_tp += tp
+    tot_fp += fp
+    tot_tn += tn
+    tot_fn += fn
+
+macro_precision = precision/len(authorPRF)
+macro_recall = recall/len(authorPRF)
+macro_fscore = fscore/len(authorPRF)
+
+micro_precision = tot_tp/(tot_tp+tot_fp)
+micro_recall = tot_tp/(tot_tp+tot_fn)
+micro_fscore = 2*tot_tp/(2*tot_tp+tot_fp+tot_fn)
+
+print('Micro-Averaged \nPrecision:', micro_precision)
+print('Recall:', micro_recall)
+print('F-score:', micro_fscore)
+print('Macro-Averaged \nPrecision:', macro_precision)
+print('Recall:', macro_recall)
+print('F-score:', macro_fscore)
+print('Finished')
+print('Success rate :', success/ totalTrial)
