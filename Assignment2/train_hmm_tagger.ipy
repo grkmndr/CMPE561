@@ -1,0 +1,90 @@
+import re
+import numpy as np
+import os
+import codecs
+import sys
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('filename', metavar='f', type=str, nargs=1,
+                   help='training file')
+group = parser.add_mutually_exclusive_group()
+group.add_argument('--cpostag', action='store_true')
+group.add_argument('--postag', action='store_true')
+args = parser.parse_args()
+
+print(args)
+print(type(args))
+
+def tokenize(text): #if choice is 1 return the bag of words
+    bag = re.split('\s+', text)
+    return bag
+
+
+rootDir = '.'
+
+TRAINING_SET_DIRECTORY_PATH = sys.argv[1]
+
+word_pairs = {}
+tag_pairs = {}
+
+with codecs.open(rootDir+'/'+str(args.filename[0]), 'r', 'UTF-8') as myfile:
+	##print(dirName+'/'+fname)
+	print(myfile)
+	text = myfile.read().lower()
+
+	original_words = tokenize(text)
+
+	words = []
+	for i in range(0,len(original_words)-1, 10):
+		if original_words[i+1] != '_':
+			words.append(original_words[i+1])
+			words.append(original_words[i+3])
+			words.append(original_words[i+4])
+
+	print(len(words))
+
+	count = 0;
+	for i in range(1, len(words)-11, 10):
+		if words[i] == '_':
+			count += 1;
+
+	for i in range (0,100,3):
+		print(words[i])
+
+	for i in range(0, len(words)-5, 3): #iterate over the tokens 10-by-10. So the index always shows the FORM field.The last index is the second word from the end			
+		word1 = words[i]
+		word2 = words[i+3]
+
+		if word1 in word_pairs:
+			if word2 in word_pairs[word1]:
+				word_pairs[word1][word2] += 1 
+			else:
+				word_pairs[word1].update({word2:1})
+		else:
+			word_pairs[word1] = {}
+
+		if args.cpostag:
+			tag1 = words[i+1]
+			tag2 = words[i+4]
+			if tag1 in tag_pairs:
+				if tag2 in tag_pairs[tag1]:
+					tag_pairs[tag1][tag2] += 1 
+				else:
+					tag_pairs[tag1][tag2] = 1
+			else:
+				tag_pairs[tag1] = {}
+
+		elif args.postag:
+			tag1 = words[i+2]
+			tag2 = words[i+5]
+			if tag1 in tag_pairs:
+				if tag2 in tag_pairs[tag1]:
+					tag_pairs[tag1][tag2] += 1 
+				else:
+					tag_pairs[tag1][tag2] = 1
+			else:
+				tag_pairs[tag1] = {}
+
+		else:
+			print("Please specify the postag type. (--cpostag or --postag)")
