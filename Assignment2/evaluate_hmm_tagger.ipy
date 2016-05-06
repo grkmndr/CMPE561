@@ -1,0 +1,50 @@
+#from sklearn.metrics import confusion_matrix
+import re 
+import os
+import sys
+import codecs
+
+output_file = sys.argv[1]
+gold_file = sys.argv[2]
+
+tag_type = ''
+
+# Tokenizer
+def tokenize(text, regex): 
+    tokens = re.split(regex, text)
+    return tokens
+
+
+with codecs.open('./' + output_file, 'r', 'utf-8-sig') as myfile:
+
+	text = myfile.read().lower()
+
+	word_tag_pairs = tokenize(text, "\||\s+")
+
+	tag_type = word_tag_pairs[-1]
+
+	print('tag is' , tag_type)
+
+	tags = []
+
+	for i in range(0,len(word_tag_pairs)):
+		if i%2:
+			tags.append(word_tag_pairs[i])
+	print(tags)
+
+with codecs.open('./' + gold_file, 'r', 'utf-8-sig') as myfile:
+
+	text = myfile.read().lower()
+
+	word_tag_pairs = tokenize(text, "\s+")
+
+	cpostags = []
+	postags = []
+	for i in range(0,len(word_tag_pairs)-1, 10):
+		if word_tag_pairs[i+1] != '_':
+			cpostags.append(word_tag_pairs[i+3])
+			postags.append(word_tag_pairs[i+4])
+
+	print('postags', postags)
+	print('cpostags', cpostags)
+

@@ -1,0 +1,162 @@
+# coding=utf-8
+
+import re
+import numpy as np
+import os
+import codecs
+import sys
+import json
+
+training_data = {}
+with codecs.open('./hmm.data', 'r', 'UTF-8') as myfile:
+	data = myfile.read()
+	training_data = json.loads(data)
+
+
+postag_type = training_data['postag_type']
+tag_pairs = training_data['tag_pairs']
+tag_word_pairs = training_data['tag_word_pairs']
+word_pairs = training_data['word_pairs']
+
+tag_counts = {}
+word_counts = {}
+
+for tag in tag_pairs:
+	tag_counts[tag] = sum(tag_pairs[tag].values())
+
+for word in word_pairs:
+	word_counts[word] = sum(word_pairs[word].values())
+
+total_tag_count = sum(tag_counts.values())
+tags = list(tag_counts.keys())
+tags.remove('START')
+
+# Tokenizer
+def tokenize(text, regex): 
+    tokens = re.split(regex, text)
+    return tokens
+
+
+# Viterbi Algroithm
+def viterbi(word_list, tag_list): 
+
+	L = len(word_list)
+	N = len(tag_list)
+	#viterbi = [[0 for x in range(L)] for y in range(N+2)] 
+	#backpointer = [[0 for x in range(L)] for y in range(N+2)] 
+
+	viterbi = np.zeros((N+2,L))
+	backpointer = np.chararray((N+2,L), itemsize = 10)
+	backpointer[:] = 'NotTagged'
+	
+
+	for i in range(1,N+1):
+		curr_tag = tag_list[i-1]
+		first_word = word_list[0]
+
+		if first_word in tag_word_pairs[curr_tag] and curr_tag in tag_pairs['START']:
+			viterbi[i][0] = (float(tag_pairs['START'][curr_tag])/tag_counts['START']) * (float(tag_word_pairs[curr_tag][first_word])/tag_counts[curr_tag]) #initialization step for viterbi
+		elif curr_tag in tag_pairs['START']:
+			viterbi[i][0] = (float(tag_pairs['START'][curr_tag])/tag_counts['START']) #if the first_word is not seen in the training set, then set its likelihood estimate to 1.
+		else:
+			viterbi[i][0] = 0
+
+
+		backpointer[i][0] = 'NotTagged'
+
+	for i in range(1,L):
+		for j in range(1,N+1):
+			max_prob = 0
+
+			max_tag = 'NotTagged'
+			max_tag_prob = 0
+
+			for k in range(1,N+1):
+				curr_tag = tag_list[j-1]
+				prev_tag = tag_list[k-1]
+				curr_word = word_list[i]
+				prob = 0
+				if (curr_word in tag_word_pairs[curr_tag]) and (curr_tag in tag_pairs[prev_tag]):
+					prob = viterbi[k][i-1] * (float(tag_pairs[prev_tag][curr_tag])/tag_counts[prev_tag]) * (float(tag_word_pairs[curr_tag][curr_word])/tag_counts[curr_tag])
+					tag_prob = viterbi[k][i-1] * (float(tag_pairs[prev_tag][curr_tag])/tag_counts[prev_tag])
+				elif curr_tag in tag_pairs[prev_tag]: #if the curr_word is not seen in the training set, then set its likelihood estimate to 1.
+					prob = viterbi[k][i-1] * (float(tag_pairs[prev_tag][curr_tag])/tag_counts[prev_tag])
+					tag_prob = viterbi[k][i-1] * (float(tag_pairs[prev_tag][curr_tag])/tag_counts[prev_tag])
+				else:
+					prob = 0
+					tag_prob = 0
+
+				if max_prob < prob:
+					max_prob = prob
+
+				if max_tag_prob < tag_prob:
+					max_tag_prob = tag_prob
+					max_tag = prev_tag
+
+			viterbi[j][i] = max_prob
+			backpointer[j][i] = max_tag
+
+	max_prob = 0
+
+	max_tag = ''
+	for i in range(1,N+1):
+		curr_tag = tag_list[i-1]
+		
+		prob = viterbi[i][L-1] * (float(tag_counts[curr_tag])/total_tag_count)
+
+		if max_prob < prob:
+			max_prob = prob
+			max_tag = curr_tag
+
+	#print('max_prob is ', max_prob, max_tag)
+
+	viterbi[N+1][L-1] = max_prob
+	backpointer[N+1][L-1] = 'punc'
+
+	return backpointer
+
+
+# Start tagging the test data
+with codecs.open('./'+sys.argv[1], 'r', 'UTF-8') as myfile:
+	text = myfile.read().lower()
+	sentences = tokenize(text, '\n\n')
+
+	
+	with codecs.open('./output_file.txt', 'w', 'utf-8-sig') as outputfile:
+
+		for sentence in sentences:
+
+			words = []
+			original_words = tokenize(sentence, '\t|\n')
+
+			
+			for i in range(0,len(original_words)-1, 3):
+				if original_words[i+1] != '_':
+					words.append(original_words[i+1])
+
+
+			path = viterbi(words, tags)
+			#print(path)
+			#print(tag_pairs['START'].keys(), len(tags))
+
+			L = len(words)
+			N = len(tags)
+			tag_seq = np.chararray((L), itemsize = 10)
+
+			tag_seq[L-1] = path[N+1][L-1]
+			for i in range(L-2, -1, -1):
+				
+				index = tags.index(tag_seq[i+1])
+				tag_seq[i] = path[index+1][i]
+
+			for i in range(0,L):
+				string = words[i] + '|' + tag_seq[i] + '\n'
+				outputfile.write(string)
+
+			outputfile.write('\n')
+
+		outputfile.write(postag_type)
+
+		#print(tag_seq)
+
+
