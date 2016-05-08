@@ -1,9 +1,12 @@
+# coding=utf-8
+
 import re
 import numpy as np
 import os
 import codecs
 import sys
 import argparse
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('filename', metavar='f', type=str, nargs=1,
@@ -13,13 +16,10 @@ group.add_argument('--cpostag', action='store_true')
 group.add_argument('--postag', action='store_true')
 args = parser.parse_args()
 
-print(args)
-print(type(args))
 
-def tokenize(text): #if choice is 1 return the bag of words
-    bag = re.split('\s+', text)
-    return bag
-
+def tokenize(text): 
+    tokens = re.split('\s+', text)
+    return tokens
 
 rootDir = '.'
 
@@ -27,64 +27,114 @@ TRAINING_SET_DIRECTORY_PATH = sys.argv[1]
 
 word_pairs = {}
 tag_pairs = {}
+tag_pairs['START'] = {}
+tag_word_pairs = {}
+tag_word_pairs['START'] = {}
+
 
 with codecs.open(rootDir+'/'+str(args.filename[0]), 'r', 'UTF-8') as myfile:
 	##print(dirName+'/'+fname)
-	print(myfile)
 	text = myfile.read().lower()
-
 	original_words = tokenize(text)
-
 	words = []
 	for i in range(0,len(original_words)-1, 10):
 		if original_words[i+1] != '_':
+			words.append(original_words[i])
 			words.append(original_words[i+1])
 			words.append(original_words[i+3])
 			words.append(original_words[i+4])
-
-	print(len(words))
 
 	count = 0;
 	for i in range(1, len(words)-11, 10):
 		if words[i] == '_':
 			count += 1;
 
-	for i in range (0,100,3):
-		print(words[i])
+	#for i in range (0,40,1):
+	#	print(original_words[i])
 
-	for i in range(0, len(words)-5, 3): #iterate over the tokens 10-by-10. So the index always shows the FORM field.The last index is the second word from the end			
-		word1 = words[i]
-		word2 = words[i+3]
+	for i in range(0, len(words)-7, 4): #iterate over the tokens 4-by-4. So the index always shows the ID field.The last index is the second ID from the end			
+		
+		wordID = words[i]
+		word1 = words[i+1]
+		word2 = words[i+5]
+
+		if wordID == '1':
+			if word1 in tag_word_pairs['START']:
+				tag_word_pairs['START'][word1] += 1
+			else:
+				tag_word_pairs['START'][word1] = 1
+
+			if args.cpostag:
+				tag = words[i+2]
+				if tag in tag_pairs['START']:
+					tag_pairs['START'][tag] += 1
+				else:
+					tag_pairs['START'][tag] = 1
+
+			if args.postag:
+				tag = words[i+3]
+				if tag in tag_pairs['START']:
+					tag_pairs['START'][tag] += 1
+				else:
+					tag_pairs['START'][tag] = 1
+
 
 		if word1 in word_pairs:
 			if word2 in word_pairs[word1]:
 				word_pairs[word1][word2] += 1 
 			else:
-				word_pairs[word1].update({word2:1})
+				word_pairs[word1][word2] = 1
 		else:
-			word_pairs[word1] = {}
+			word_pairs[word1] = {word2:1}
 
 		if args.cpostag:
-			tag1 = words[i+1]
-			tag2 = words[i+4]
+			tag1 = words[i+2]
+			tag2 = words[i+6]
 			if tag1 in tag_pairs:
 				if tag2 in tag_pairs[tag1]:
 					tag_pairs[tag1][tag2] += 1 
 				else:
 					tag_pairs[tag1][tag2] = 1
 			else:
-				tag_pairs[tag1] = {}
+				tag_pairs[tag1] = {tag2:1}
+
+			if tag1 in tag_word_pairs:
+				if word1 in tag_word_pairs[tag1]:
+					tag_word_pairs[tag1][word1] += 1
+				else:
+					tag_word_pairs[tag1][word1] = 1
+			else:
+				tag_word_pairs[tag1] = {word1:1}	
 
 		elif args.postag:
-			tag1 = words[i+2]
-			tag2 = words[i+5]
+			tag1 = words[i+3]
+			tag2 = words[i+7]
 			if tag1 in tag_pairs:
 				if tag2 in tag_pairs[tag1]:
 					tag_pairs[tag1][tag2] += 1 
 				else:
 					tag_pairs[tag1][tag2] = 1
 			else:
-				tag_pairs[tag1] = {}
+				tag_pairs[tag1] = {tag2:1}
+
+			if tag1 in tag_word_pairs:
+				if word1 in tag_word_pairs[tag1]:
+					tag_word_pairs[tag1][word1] += 1
+				else:
+					tag_word_pairs[tag1][word1] = 1
+			else:
+				tag_word_pairs[tag1] = {word1:1}	
 
 		else:
 			print("Please specify the postag type. (--cpostag or --postag)")
+
+postag_type = 'postag'
+if args.cpostag: postag_type = 'cpostag'
+
+training_data = {'postag_type':postag_type ,'word_pairs':word_pairs, 'tag_pairs':tag_pairs, 'tag_word_pairs':tag_word_pairs}
+
+with codecs.open(rootDir+'/hmm.data', 'w', 'UTF-8') as myfile: #Write all the data to a file to be used in the second part of the assignment
+	myfile.write(json.dumps(training_data))
+
+
+
