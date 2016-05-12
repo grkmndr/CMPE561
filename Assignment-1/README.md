@@ -9,10 +9,11 @@ $ ipython Part1.ipy
 
 Run Part2.py file in the same directory with the trainingSet and testSet(it should be in the directory that contains trainingSet and testSet folders) with the following command:
 
-(bag of words + features)
+(bag of words + features):
 $ ipython Part2.ipy trainingSet testSet
 
-(only bag of words)
+
+(only bag of words):
 $ ipython Part3.ipy trainingSet testSet 
 
 (Please write 'testSet' instead of '/testSet' or 'testSet/' . Same applies to the trainingSet)
