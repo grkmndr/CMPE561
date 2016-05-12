@@ -51,9 +51,9 @@ def z_score(mean, var, value): #returns the z-score of a variable (value)
 #The following for loop iterates over the files in the training set and fills the bag of words (authorBags) for each author.
 #The feature set dictionary (authorFeatures) is also filled in this for loop.
 for dirName, subdirList, fileList in os.walk(rootDir +'/'+ str(TRAINING_SET_DIRECTORY_PATH)):
-    if(dirName != './trainingSet'):
+    if(dirName != './trainingSet') and ('.git' not in dirName):
         currDir = dirName[14:]
-        print(currDir)
+        #print(dirName)
         authorBags.update({currDir:{}})
         authorFeatures.update({currDir:{'wordCount':[], #wordCount: total word count for the author.
                                         'sentenceCount':[], #sentenceCount: sentence count per document for the author.
@@ -243,16 +243,17 @@ for dirName, subdirList, fileList in os.walk(rootDir+'/'+str(TEST_SET_DIRECTORY_
     if(dirName != './testSet'):
         currDir = dirName[10:]
         for fname in fileList:
-            text = ''
-            with codecs.open(dirName+'/'+fname, 'r', 'ISO-8859-9') as myfile:
-                text = myfile.read().lower()
-                auth = text_class(text, dirName[10:]) #predict the author of the current file(fname) .
-                totalTrial += 1
-                if (auth == dirName[10:]): #the prediction is correct (true positive)
-                    authorPRF[auth]['TP'] += 1
-                    success += 1
-                else: #the prediction is incorrect (false positive)
-                    authorPRF[auth]['FP'] += 1
+            if fname[-4:] == '.txt':
+                text = ''
+                with codecs.open(dirName+'/'+fname, 'r', 'ISO-8859-9') as myfile:
+                    text = myfile.read().lower()
+                    auth = text_class(text, dirName[10:]) #predict the author of the current file(fname) .
+                    totalTrial += 1
+                    if (auth == dirName[10:]): #the prediction is correct (true positive)
+                        authorPRF[auth]['TP'] += 1
+                        success += 1
+                    else: #the prediction is incorrect (false positive)
+                        authorPRF[auth]['FP'] += 1
 
 
                     
