@@ -20,12 +20,13 @@ rootDir = '.'
 authors = []
 fileCount = 0;
 
-shutil.rmtree('./trainingSet') #delete the current training set directory
-shutil.rmtree('./testSet') #delete the current test set directory
+if os.path.exists('./trainingSet'):
+    shutil.rmtree('./trainingSet') #delete the current training set directory
+if os.path.exists('./testSet'):
+    shutil.rmtree('./testSet') #delete the current test set directory
 
 #This for loop traverses each sub directory and file in the root directory
 for dirName, subdirList, fileList in os.walk(rootDir):
-    
     if('./trainingSet' not in dirName and './testSet' not in dirName) and (dirName != '.') and (dirName != './.ipynb_checkpoints'):
         authors.append(dirName[2:])
         fileCount = len(fileList)
