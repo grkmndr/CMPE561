@@ -10,10 +10,11 @@ Run Part1.ipy file in the same directory with data set (it should be in the dire
 $ ipython Part1.ipy
 ```
 
+###Part 2:
 
 Run Part2.py file in the same directory with the trainingSet and testSet(it should be in the directory that contains trainingSet and testSet folders) with the following command:
 
-###Part 2 (Bag of words + features):
+####Bag of words + features:
 
 ```
 $ ipython Part2.ipy $DIR
@@ -21,7 +22,7 @@ $ ipython Part2.ipy $DIR
 
 (where "$DIR" is the directory in which the testSet and trainingSet folders are located.
 
-###Part 2 (Only bag of words):
+####Only bag of words:
 
 ```
 $ ipython Part3.ipy $DIR
