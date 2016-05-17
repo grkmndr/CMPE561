@@ -10,7 +10,7 @@ Run Part1.ipy file in the same directory with data set (it should be in the dire
 $ python Part1.ipy $DIR
 ```
 
-(where "$DIR" is the directory in which the author data is located.)
+(where "$DIR" is the directory in which all the author data is located.)
 
 
 ###Part 2:
