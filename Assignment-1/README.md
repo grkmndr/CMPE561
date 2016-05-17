@@ -7,8 +7,11 @@
 Run Part1.ipy file in the same directory with data set (it should be in the directory that contains all subdirectories for the authors) with the following command:
 
 ```
-$ ipython Part1.ipy
+$ python Part1.ipy $DIR
 ```
+
+(where "$DIR" is the directory in which the author data is located.)
+
 
 ###Part 2:
 
