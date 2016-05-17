@@ -4,15 +4,15 @@ import os
 import codecs
 import sys
 
-rootDir = '.'
+rootDir = sys.argv[1]
 TOTAL_TRAINING_DOCUMENT_COUNT = 0
 DOCUMENT_COUNT_PER_AUTHOR = {}
 VOCABULARY = set() #Set of all the unique words in the training set.
 authorBags = {} #A dictionary for storing the bag of words for each author.
 authorFeatures = {} #A dictionary for storing the features (word count, sentence count etc.) of each author
 authorPRF = {} #A dictionary for evaluating the precision, recall and f-score values for each author
-TRAINING_SET_DIRECTORY_PATH = sys.argv[1]
-TEST_SET_DIRECTORY_PATH = sys.argv[2]
+#TRAINING_SET_DIRECTORY_PATH = sys.argv[1]
+#TEST_SET_DIRECTORY_PATH = sys.argv[2]
 
 def tokenize(text, choice): #if choice is 1 return the bag of words, else return the unique words with their counts
     bag = re.split('\W+', text)
@@ -50,9 +50,9 @@ def z_score(mean, var, value): #returns the z-score of a variable (value)
 
 #The following for loop iterates over the files in the training set and fills the bag of words (authorBags) for each author.
 #The feature set dictionary (authorFeatures) is also filled in this for loop.
-for dirName, subdirList, fileList in os.walk(rootDir +'/'+ str(TRAINING_SET_DIRECTORY_PATH)):
-    if(dirName != './trainingSet') and ('.git' not in dirName):
-        currDir = dirName[14:]
+for dirName, subdirList, fileList in os.walk(rootDir +'/trainingSet'):
+    if(dirName[-11:] != 'trainingSet') and ('.git' not in dirName):
+        currDir = dirName[len(rootDir)+13:]
         #print(dirName)
         authorBags.update({currDir:{}})
         authorFeatures.update({currDir:{'wordCount':[], #wordCount: total word count for the author.
@@ -118,8 +118,7 @@ for dirName, subdirList, fileList in os.walk(rootDir +'/'+ str(TRAINING_SET_DIRE
         for key in authorFeatures[currDir].keys():
             authorFeatures[currDir][key] = mean_var(authorFeatures[currDir][key])
 
-
-
+            
 #Takes a text as an input and returns the predicted class (maxAuth) for that text.
 #true_class: the actual author of the text
 def text_class(text, true_class): 
@@ -210,10 +209,10 @@ def text_class(text, true_class):
         #I played around with the coefficients for a while and this method turned out to be pretty successful.
         """
         prob -= abs(authorFeatures[authName]['wordCount'][0] - len(tokens))
-        prob -= abs(authorFeatures[authName]['sentenceCount'][0] - sentenceCount)
-        prob -= 10*abs(authorFeatures[authName]['wordLength'][0] - wordLength)
+        prob -= 0.5*abs(authorFeatures[authName]['sentenceCount'][0] - sentenceCount)
+        prob -= 2*abs(authorFeatures[authName]['wordLength'][0] - wordLength)
         prob -= 100*abs(authorFeatures[authName]['commaCount'][0] - commaCount/sentenceCount)
-        prob -= 1000*abs(authorFeatures[authName]['exclamationCount'][0] - exclamationCount/sentenceCount)
+        prob -= 600*abs(authorFeatures[authName]['exclamationCount'][0] - exclamationCount/sentenceCount)
         prob -= 100*abs(authorFeatures[authName]['questionCount'][0] - questionCount/sentenceCount)
         """
         #If the probability of this text to be written by the current author is greater than the max 
@@ -240,17 +239,17 @@ def text_class(text, true_class):
 success = 0 #total number of successful author predictions
 totalTrial = 0 #total number of predictions (which actually is equal to the number of files in the test set).
 
-for dirName, subdirList, fileList in os.walk(rootDir+'/'+str(TEST_SET_DIRECTORY_PATH)):
-    if(dirName != './testSet'):
-        currDir = dirName[10:]
+for dirName, subdirList, fileList in os.walk(rootDir+'/testSet'):
+    if(dirName[-7:] != 'testSet'):
+        currDir = dirName[len(rootDir)+9:]
         for fname in fileList:
             if fname[-4:] == '.txt':
                 text = ''
                 with codecs.open(dirName+'/'+fname, 'r', 'ISO-8859-9') as myfile:
                     text = myfile.read().lower()
-                    auth = text_class(text, dirName[10:]) #predict the author of the current file(fname) .
+                    auth = text_class(text, dirName[len(rootDir)+9:]) #predict the author of the current file(fname) .
                     totalTrial += 1
-                    if (auth == dirName[10:]): #the prediction is correct (true positive)
+                    if (auth == dirName[len(rootDir)+9:]): #the prediction is correct (true positive)
                         authorPRF[auth]['TP'] += 1
                         success += 1
                     else: #the prediction is incorrect (false positive)
