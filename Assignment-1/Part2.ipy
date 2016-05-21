@@ -5,8 +5,8 @@ import codecs
 import sys
 
 rootDir = sys.argv[1]
-#trainDir = sys.argv[1]
-#testDir = sys.argv[2]
+trainDir = sys.argv[1]
+testDir = sys.argv[2]
 TOTAL_TRAINING_DOCUMENT_COUNT = 0
 DOCUMENT_COUNT_PER_AUTHOR = {}
 VOCABULARY = set() #Set of all the unique words in the training set.
@@ -52,9 +52,10 @@ def z_score(mean, var, value): #returns the z-score of a variable (value)
 
 #The following for loop iterates over the files in the training set and fills the bag of words (authorBags) for each author.
 #The feature set dictionary (authorFeatures) is also filled in this for loop.
-for dirName, subdirList, fileList in os.walk(rootDir +'/trainingSet'):
+for dirName, subdirList, fileList in os.walk(trainDir):
     if(dirName[-11:] != 'trainingSet') and ('.git' not in dirName):
-        currDir = dirName[len(rootDir)+13:]
+        currDir = dirName[len(trainDir)+1:]
+        print("Author information of %s is being copied to the dictionaries." % currDir)
         #print(dirName)
         authorBags.update({currDir:{}})
         authorFeatures.update({currDir:{'wordCount':[], #wordCount: total word count for the author.
@@ -244,26 +245,29 @@ def text_class(text, true_class):
 success = 0 #total number of successful author predictions
 totalTrial = 0 #total number of predictions (which actually is equal to the number of files in the test set).
 
-for dirName, subdirList, fileList in os.walk(rootDir+'/testSet'):
+print("Classifying the data set files:")
+for dirName, subdirList, fileList in os.walk(testDir):
     if(dirName[-7:] != 'testSet'):
-        currDir = dirName[len(rootDir)+9:]
+        currDir = dirName[len(testDir)+1:]
+        print("Classifying the files of %s" % currDir)
         for fname in fileList:
             if fname[-4:] == '.txt':
                 text = ''
                 with codecs.open(dirName+'/'+fname, 'r', 'ISO-8859-9') as myfile:
                     text = myfile.read().lower()
-                    auth = text_class(text, dirName[len(rootDir)+9:]) #predict the author of the current file(fname) .
+                    auth = text_class(text, currDir) #predict the author of the current file(fname) .
                     
                     #print("AUTHOR: ", authorBags['abbasGuclu'])
 
                     totalTrial += 1
-                    if (auth == dirName[len(rootDir)+9:]): #the prediction is correct (true positive)
+                    if (auth == currDir): #the prediction is correct (true positive)
                         authorPRF[auth]['TP'] += 1.0
                         success += 1
                     else: #the prediction is incorrect (false positive)
                         authorPRF[auth]['FP'] += 1.0
 
-
+print("Test set classification is completed !")
+print("Here are the results:")
                     
 #The rest of the code is for calculating the micro-macro averages.
                     
