@@ -20,13 +20,13 @@ The execution of the files Part2.ipy and Part3.ipy are as follows
 ####Bag of words + features:
 
 ```
-$ ipython Part2.ipy $TRAINING_SET_DIR $TEST_SET_DIR
+$ python Part2.ipy $TRAINING_SET_DIR $TEST_SET_DIR
 ```
 
 
 ####Only bag of words:
 
 ```
-$ ipython Part3.ipy $TRAINING_SET_DIR $TEST_SET_DIR
+$ python Part3.ipy $TRAINING_SET_DIR $TEST_SET_DIR
 ```
 
