@@ -2,11 +2,13 @@ import numpy as np
 import shutil
 from shutil import copyfile
 import os
+import sys
 
 
 def random_test_set(files): #returns the randomly chosen %40 percent of an array
     sampleSize = len(files)*2/5 #size of the returned sample
     sample = []  #randomly chosen %40 percent of the given array
+    #print('files',files)
     for i,line in enumerate(files):
         if i < sampleSize:
             sample.append(line)
@@ -16,31 +18,32 @@ def random_test_set(files): #returns the randomly chosen %40 percent of an array
     return sample
             
 # Set the directory you want to start from
-rootDir = '.'
+rootDir = sys.argv[1] 
 authors = []
 fileCount = 0;
 
-if os.path.exists('./trainingSet'):
-    shutil.rmtree('./trainingSet') #delete the current training set directory
-if os.path.exists('./testSet'):
-    shutil.rmtree('./testSet') #delete the current test set directory
+if os.path.exists(str('./trainingSet')):
+    shutil.rmtree(str('./trainingSet')) #delete the current training set directory
+if os.path.exists(str('./testSet')):
+    shutil.rmtree(str('./testSet')) #delete the current test set directory
 
 #This for loop traverses each sub directory and file in the root directory
 for dirName, subdirList, fileList in os.walk(rootDir):
-    if('./trainingSet' not in dirName and './testSet' not in dirName) and (dirName != '.') and (dirName != './.ipynb_checkpoints'):
-        authors.append(dirName[2:])
+    if not dirName.startswith('.'):
+    
+        authors.append(dirName[len(rootDir)+1:])
         fileCount = len(fileList)
         testSet = random_test_set(fileList) #choose the %40 percent of the files in the current directory
-        print(dirName)
-        if not os.path.exists('trainingSet/'+dirName[1:]): #create a directory for the current author in the training set if it hasn't been created yet
-            os.makedirs('trainingSet'+dirName[1:])
+        #print(dirName)
 
-        if not os.path.exists('testSet/'+dirName[1:]): #create a directory for the current author in the test set if it hasn't been created yet
-            os.makedirs('testSet/'+dirName[1:])
+        if not os.path.exists('./trainingSet/'+dirName[len(rootDir):]): #create a directory for the current author in the training set if it hasn't been created yet
+            os.makedirs('./trainingSet'+dirName[len(rootDir):])
+            print(dirName[len(rootDir):])
+        if not os.path.exists('./testSet/'+dirName[len(rootDir):]): #create a directory for the current author in the test set if it hasn't been created yet
+            os.makedirs('./testSet'+dirName[len(rootDir):])
 
-            
         for fname in fileList:
             if fname in testSet:
-                copyfile((dirName+'/'+fname), './testSet'+dirName[1:]+'/'+fname) #make a copy of the current file in ./testSet directory if it's in the testSet list
+                copyfile((dirName+'/'+fname), './testSet'+dirName[len(rootDir):]+'/'+fname) #make a copy of the current file in ./testSet directory if it's in the testSet list
             else:
-                copyfile((dirName+'/'+fname), './trainingSet'+dirName[1:]+'/'+fname) #make a copy of the current file in ./trainingSet directory if it's not in the testSet list
+                copyfile((dirName+'/'+fname), './trainingSet'+dirName[len(rootDir):]+'/'+fname) #make a copy of the current file in ./trainingSet directory if it's not in the testSet list
