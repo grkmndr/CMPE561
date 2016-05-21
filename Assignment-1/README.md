@@ -4,7 +4,7 @@
 -----------------------
 
 ###Part 1:
-Run Part1.ipy file in the same directory with data set (it should be in the directory that contains all subdirectories for the authors) with the following command:
+The execution of the file Part1.ipy is as follows
 
 ```
 $ python Part1.ipy $DIR
@@ -15,20 +15,18 @@ $ python Part1.ipy $DIR
 
 ###Part 2:
 
-Run Part2.py file in the same directory with the trainingSet and testSet(it should be in the directory that contains trainingSet and testSet folders) with the following command:
+The execution of the files Part2.ipy and Part3.ipy are as follows
 
 ####Bag of words + features:
 
 ```
-$ ipython Part2.ipy $DIR
+$ ipython Part2.ipy $TRAINING_SET_DIR $TEST_SET_DIR
 ```
 
-(where "$DIR" is the directory in which the testSet and trainingSet folders are located.
 
 ####Only bag of words:
 
 ```
-$ ipython Part3.ipy $DIR
+$ ipython Part3.ipy $TRAINING_SET_DIR $TEST_SET_DIR
 ```
 
-(where "$DIR" is the directory in which the testSet and trainingSet folders are located.
